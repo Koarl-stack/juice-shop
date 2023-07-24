@@ -1,10 +1,9 @@
-// require("colors");
 import { retrieveCodeSnippet } from '../routes/vulnCodeSnippet'
+import colors from 'colors/safe'
 const Diff = require('diff')
 const fs = require('fs')
 const fixesPath = 'data/static/codefixes'
 const cacheFile = 'rsn/cache.json'
-const colors = require('colors/safe')
 
 interface CacheData {
   [key: string]: {
@@ -15,12 +14,12 @@ interface CacheData {
 
 function readFiles () {
   const files = fs.readdirSync(fixesPath)
-  const keys = files.filter(file => file.endsWith('.ts'))
+  const keys = files.filter((file: string) => file.endsWith('.ts'))
   return keys
 }
 
 function writeToFile (json: CacheData) {
-  fs.writeFileSync(cacheFile, JSON.stringify(json))
+  fs.writeFileSync(cacheFile, JSON.stringify(json, null, '\t'))
 }
 
 function getDataFromFile () {
@@ -44,8 +43,9 @@ const checkDiffs = async (keys: string[]) => {
     }
   }, {})
   for (const val of keys) {
-    await retrieveCodeSnippet(val.split('_')[0], true)
+    await retrieveCodeSnippet(val.split('_')[0])
       .then(snippet => {
+        if (!snippet) return
         process.stdout.write(val + ': ')
         const fileData = fs.readFileSync(fixesPath + '/' + val).toString()
         const diff = Diff.diffLines(filterString(fileData), filterString(snippet.snippet))
@@ -57,11 +57,11 @@ const checkDiffs = async (keys: string[]) => {
           if (!(part.added)) continue
           for (let i = 0; i < part.count; i++) {
             if (!snippet.vulnLines.includes(prev + i + 1) && !snippet.neutralLines.includes(prev + i + 1)) {
-              process.stdout.write(colors.red.inverse(prev + i + 1 + ''))
+              process.stdout.write(colors.red(colors.inverse(prev + i + 1 + '')))
               process.stdout.write(' ')
               data[val].added.push(prev + i + 1)
             } else if (snippet.vulnLines.includes(prev + i + 1)) {
-              process.stdout.write(colors.red.bold(prev + i + 1 + ' '))
+              process.stdout.write(colors.red(colors.bold(prev + i + 1 + ' ')))
             } else if (snippet.neutralLines.includes(prev + i + 1)) {
               process.stdout.write(colors.red(prev + i + 1 + ' '))
             }
@@ -80,11 +80,11 @@ const checkDiffs = async (keys: string[]) => {
           let temp = norm
           for (let i = 0; i < part.count; i++) {
             if (!snippet.vulnLines.includes(prev + i + 1 - norm) && !snippet.neutralLines.includes(prev + i + 1 - norm)) {
-              process.stdout.write(colors.green.inverse((prev + i + 1 - norm + '')))
+              process.stdout.write(colors.green(colors.inverse((prev + i + 1 - norm + ''))))
               process.stdout.write(' ')
               data[val].removed.push(prev + i + 1 - norm)
             } else if (snippet.vulnLines.includes(prev + i + 1 - norm)) {
-              process.stdout.write(colors.green.bold(prev + i + 1 - norm + ' '))
+              process.stdout.write(colors.green(colors.bold(prev + i + 1 - norm + ' ')))
             } else if (snippet.neutralLines.includes(prev + i + 1 - norm)) {
               process.stdout.write(colors.green(prev + i + 1 - norm + ' '))
             }
@@ -103,11 +103,11 @@ const checkDiffs = async (keys: string[]) => {
 
 async function seePatch (file: string) {
   const fileData = fs.readFileSync(fixesPath + '/' + file).toString()
-  const snippet = await retrieveCodeSnippet(file.split('_')[0], true)
-  const patch = Diff.structuredPatch('sample.ts', 'sample6.ts', filterString(fileData), filterString(snippet.snippet), 'oh', 'nh')
-  console.log('@' + file + ':\n')
+  const snippet = await retrieveCodeSnippet(file.split('_')[0])
+  if (!snippet) return
+  const patch = Diff.structuredPatch(file, file, filterString(snippet.snippet), filterString(fileData))
+  console.log(colors.bold(file + '\n'))
   for (const hunk of patch.hunks) {
-    console.log('--------patch--------')
     for (const line of hunk.lines) {
       if (line[0] === '-') {
         console.log(colors.red(line))
@@ -118,32 +118,31 @@ async function seePatch (file: string) {
       }
     }
   }
+  console.log('---------------------------------------')
 }
 
 function checkData (data: CacheData, fileData: CacheData) {
-  let same = true
-
-  // console.log(fileData)
+  const filesWithDiff = []
   for (const key in data) {
-    const fileDataValueAdded = fileData[key].added.sort((a, b) => a > b)
-    const dataValueAdded = data[key].added.sort((a, b) => a > b)
-    const fileDataValueRemoved = fileData[key].added.sort((a, b) => a > b)
-    const dataValueAddedRemoved = data[key].added.sort((a, b) => a > b)
+    const fileDataValueAdded = fileData[key].added.sort((a, b) => a - b)
+    const dataValueAdded = data[key].added.sort((a, b) => a - b)
+    const fileDataValueRemoved = fileData[key].added.sort((a, b) => a - b)
+    const dataValueAddedRemoved = data[key].added.sort((a, b) => a - b)
     if (fileDataValueAdded.length === dataValueAdded.length && fileDataValueRemoved.length === dataValueAddedRemoved.length) {
       if (!dataValueAdded.every((val: number, ind: number) => fileDataValueAdded[ind] === val)) {
         console.log(colors.red(key))
-        same = false
+        filesWithDiff.push(key)
       }
       if (!dataValueAddedRemoved.every((val: number, ind: number) => fileDataValueRemoved[ind] === val)) {
         console.log(colors.red(key))
+        filesWithDiff.push(key)
       }
     } else {
       console.log(colors.red(key))
-      same = false
+      filesWithDiff.push(key)
     }
   }
-
-  return same
+  return filesWithDiff
 }
 
 export {

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2014-2022 Bjoern Kimminich & the OWASP Juice Shop contributors.
+ * Copyright (c) 2014-2023 Bjoern Kimminich & the OWASP Juice Shop contributors.
  * SPDX-License-Identifier: MIT
  */
 
 import frisby = require('frisby')
-import config = require('config')
-import { Product } from '../../data/types'
-import { IncomingMessage } from 'http'
+import config from 'config'
+import { type Product } from '../../data/types'
+import { type IncomingMessage } from 'http'
 const Joi = frisby.Joi
 const security = require('../../lib/insecurity')
 const http = require('http')
@@ -36,6 +36,11 @@ describe('/rest/products/:id/reviews', () => {
       .expect('status', 200)
       .expect('header', 'content-type', /application\/json/)
       .expect('jsonTypes', reviewResponseSchema)
+  })
+
+  xit('GET product reviews by alphanumeric non-mongoDB-command product id', () => { // FIXME Turn on when #1960 is resolved
+    return frisby.get(`${REST_URL}/products/kaboom/reviews`)
+      .expect('status', 400)
   })
 
   it('PUT single product review can be created', () => {
@@ -96,6 +101,26 @@ describe('/rest/products/reviews', () => {
       }
     })
       .expect('status', 401)
+  })
+
+  it('POST non-existing product review cannot be liked', () => {
+    return frisby.post(`${REST_URL}/user/login`, {
+      headers: jsonHeader,
+      body: {
+        email: 'bjoern.kimminich@gmail.com',
+        password: 'bW9jLmxpYW1nQGhjaW5pbW1pay5ucmVvamI='
+      }
+    })
+      .expect('status', 200)
+      .then(({ json: jsonLogin }) => {
+        return frisby.post(`${REST_URL}/products/reviews`, {
+          headers: { Authorization: `Bearer ${jsonLogin.authentication.token}` },
+          body: {
+            id: 'does not exist'
+          }
+        })
+          .expect('status', 404)
+      })
   })
 
   it('POST single product review can be liked', () => {

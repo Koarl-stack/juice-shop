@@ -1,9 +1,16 @@
 /*
- * Copyright (c) 2014-2022 Bjoern Kimminich & the OWASP Juice Shop contributors.
+ * Copyright (c) 2014-2023 Bjoern Kimminich & the OWASP Juice Shop contributors.
  * SPDX-License-Identifier: MIT
  */
 
 let config
+const playbackDelays = {
+  faster: 0.5,
+  fast: 0.75,
+  normal: 1.0,
+  slow: 1.25,
+  slower: 1.5
+}
 
 export async function sleep (timeInMs: number): Promise<void> {
   return await new Promise((resolve) => {
@@ -124,7 +131,16 @@ export function waitForElementsInnerHtmlToBe (elementSelector: string, value: St
 }
 
 export function waitInMs (timeInMs: number) {
-  return async () => await sleep(timeInMs)
+  return async () => {
+    if (!config) {
+      const res = await fetch('/rest/admin/application-configuration')
+      const json = await res.json()
+      config = json.config
+    }
+    let delay = playbackDelays[config.hackingInstructor.hintPlaybackSpeed]
+    delay ??= 1.0
+    await sleep(timeInMs * delay)
+  }
 }
 
 export function waitForAngularRouteToBeVisited (route: string) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2022 Bjoern Kimminich & the OWASP Juice Shop contributors.
+ * Copyright (c) 2014-2023 Bjoern Kimminich & the OWASP Juice Shop contributors.
  * SPDX-License-Identifier: MIT
  */
 
@@ -385,7 +385,7 @@ describe('configValidation', () => {
     })
   })
 
-  it('should accept the default config', () => {
+  it(`should accept the active config from config/${process.env.NODE_ENV}.yml`, () => {
     expect(validateConfig({ exitOnFailure: false })).to.equal(true)
   })
 

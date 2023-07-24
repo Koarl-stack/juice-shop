@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2022 Bjoern Kimminich & the OWASP Juice Shop contributors.
+ * Copyright (c) 2014-2023 Bjoern Kimminich & the OWASP Juice Shop contributors.
  * SPDX-License-Identifier: MIT
  */
 
@@ -11,7 +11,7 @@ import { VulnLinesService, result } from '../Services/vuln-lines.service'
 import { Component, Inject, OnInit } from '@angular/core'
 
 import { MAT_DIALOG_DATA } from '@angular/material/dialog'
-import { FormControl } from '@angular/forms'
+import { UntypedFormControl } from '@angular/forms'
 import { ConfigurationService } from '../Services/configuration.service'
 import { ThemePalette } from '@angular/material/core'
 
@@ -30,13 +30,13 @@ interface Solved {
   selector: 'app-user-details',
   templateUrl: './code-snippet.component.html',
   styleUrls: ['./code-snippet.component.scss']
-})
+  })
 export class CodeSnippetComponent implements OnInit {
   public snippet: CodeSnippet = null
   public fixes: Fixes = null
   public selectedLines: number[]
   public selectedFix: number
-  public tab: FormControl = new FormControl(0)
+  public tab: UntypedFormControl = new UntypedFormControl(0)
   public lock: ResultState = ResultState.Undecided
   public result: ResultState = ResultState.Undecided
   public hint: string = null
@@ -60,7 +60,7 @@ export class CodeSnippetComponent implements OnInit {
         this.solved.findIt = true
       }
     }, (err) => {
-      this.snippet = { snippet: JSON.stringify(err.error?.error) }
+      this.snippet = { snippet: err.error }
     })
     this.codeFixesService.get(this.dialogData.key).subscribe((fixes) => {
       this.fixes = fixes.fixes
@@ -134,22 +134,20 @@ export class CodeSnippetComponent implements OnInit {
         this.solved.findIt = true
         this.challengeService.continueCodeFindIt().subscribe((continueCode) => {
           if (!continueCode) {
-            throw (new Error('Received invalid continue code from the sever!'))
+            throw (new Error('Received invalid continue code from the server!'))
           }
           const expires = new Date()
           expires.setFullYear(expires.getFullYear() + 1)
-          console.log(continueCode)
           this.cookieService.put('continueCodeFindIt', continueCode, { expires })
         }, (err) => console.log(err))
       } else {
         this.solved.fixIt = true
         this.challengeService.continueCodeFixIt().subscribe((continueCode) => {
           if (!continueCode) {
-            throw (new Error('Received invalid continue code from the sever!'))
+            throw (new Error('Received invalid continue code from the server!'))
           }
           const expires = new Date()
           expires.setFullYear(expires.getFullYear() + 1)
-          console.log(continueCode)
           this.cookieService.put('continueCodeFixIt', continueCode, { expires })
         }, (err) => console.log(err))
       }
